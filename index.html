@@ -376,7 +376,7 @@ body.pp-authenticated #pp-logout-btn{display:inline-flex!important}
 <div class="section"><div class="account-workspace card">
   <div class="workspace-head">
     <div><div class="workspace-kicker">ACCOUNT WORKSPACE</div><h2>SAE → Account → Discussion</h2><p>Find an account, review the current data, then move directly into the right discussion.</p></div>
-    <div class="workspace-actions"><div class="pp-data-tools"><span class="pp-tools-label">DATA</span><button class="btn" onclick="exportAllDataExcel()">Export All Excel</button><button class="btn" onclick="importPortalData()">Import / Refresh Excel</button></div><button class="btn" onclick="resetFilters()">Reset</button><button class="btn" onclick="exportSelectedSAE()">Export selected SAE</button><button class="btn primary" onclick="openSelectedAccount()">Open selected account →</button></div>
+    <div class="workspace-actions"><div class="pp-data-tools"><span class="pp-tools-label">DATA</span><button class="btn" onclick="exportAllDataExcel()">Export All Excel</button><button class="btn" onclick="importPortalData()">Import / Refresh Excel</button></div><button class="btn" onclick="resetFilters()">Reset</button><button class="btn" onclick="exportSelectedSAE()">Export selected SAE</button><button class="btn primary" onclick="drStartMeeting()">Start meeting →</button></div>
   </div>
   <div class="toolbar account-toolbar">
     <input class="input" id="search" placeholder="Search Account Name, BP Number, or SAE…" oninput="render()">
@@ -566,6 +566,9 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape')closeModal()});init(
       host.innerHTML=Object.keys(groups).sort().map(sae=>`<div class="nav-group"><div class="nav-group-title"><span>${esc(sae)}</span><small>${groups[sae].length}</small></div>${groups[sae].map(x=>{const i=portalAccounts.indexOf(x),k=keyOf(x),checked=exportSelectedKeys.has(k);return `<div class="modal-account-row ${i===selectedAccountIndex?'active':''}"><button class="modal-account-item" onclick="openAccount(${i})"><span>${esc(x['Account Name'])}</span><small>BP ${esc(x['Account BP']||'—')} · ${esc(x['AI Positioning Track']||'')}</small></button></div>`}).join('')}</div>`).join('')||'<div class="empty">No accounts found.</div>';
     };
   }
+  window.getPortalExportRows=selectedRows;
+  window.getPortalExportSelectionCount=()=>exportSelectedKeys.size;
+  window.clearPortalExportSelection=function(){exportSelectedKeys.clear();updateExportHint()};
   window.toggleExportAccount=function(enc,checked){const k=decodeURIComponent(enc);if(checked)exportSelectedKeys.add(k);else exportSelectedKeys.delete(k);updateExportHint()}
   function updateExportHint(){const el=document.getElementById('exportSelectionHint');if(!el)return;const sae=(document.getElementById('sae')?.value||'').trim();el.textContent=exportSelectedKeys.size?`${exportSelectedKeys.size} account${exportSelectedKeys.size===1?'':'s'} selected for export.`:(sae?`Export all ${allSaeRows().length} accounts for ${sae}.`:'Select an SAE to export a portfolio.')}
   function editAllFields(){
@@ -973,13 +976,13 @@ select.inline-edit-control{min-height:40px}
       }else{
         const XLSXLib=await loadXLSX();const buf=await file.arrayBuffer();const wb=XLSXLib.read(buf,{type:'array'});
         if(!wb.SheetNames.length)throw new Error('The Excel file contains no worksheets.');
-        const ws=wb.Sheets[wb.SheetNames[0]];rows=XLSXLib.utils.sheet_to_json(ws,{defval:''});
+        const ws=wb.Sheets[wb.SheetNames.includes('Accounts')?'Accounts':wb.SheetNames[0]];rows=XLSXLib.utils.sheet_to_json(ws,{defval:''});
       }
       if(!rows.length)throw new Error('No account rows were found in the selected file.');
       if(!rows.every(r=>r&&typeof r==='object'&&!Array.isArray(r)))throw new Error('The imported file must contain account records as rows.');
       const before=clone(portalAccounts);portalAccounts=rows.map(r=>clone(r));
       localStorage.setItem(IMPORT_KEY,JSON.stringify(portalAccounts));localStorage.removeItem('sap_bai_portal_edits_v1');
-      selectedAccountIndex=-1;editingAccountIndex=-1;exportSelectedKeys.clear?.();
+      selectedAccountIndex=-1;editingAccountIndex=-1;window.clearPortalExportSelection?.();
       ['sae','track','search'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
       if(typeof render==='function')render();if(typeof populateModalSae==='function')populateModalSae();
       toast(`Imported ${rows.length} account${rows.length===1?'':'s'} — portal refreshed`);
@@ -1089,5 +1092,245 @@ select.inline-edit-control{min-height:40px}
   checkSaved();
 })();
 </script>
+
+
+<style id="pioneer-decision-room">
+:root{--dr-ink:#14223d;--dr-muted:#64748b;--dr-line:#e3e9f3;--dr-blue:#1768eb;--dr-purple:#7955dc}
+body{background:#f5f7fc;color:var(--dr-ink)}
+.main{max-width:1600px;padding:30px 36px!important}
+.side{background:#fff!important;border-right:1px solid var(--dr-line)}
+.side nav button{border-radius:12px!important;margin-bottom:8px!important}
+.shared-page-header,.sap-now-hero{background:transparent!important;border:0!important;box-shadow:none!important;min-height:0!important;padding:10px 0 28px!important}
+.shared-page-title,.sap-now-title{font-size:clamp(38px,4.4vw,68px)!important;line-height:1.06!important;letter-spacing:-3px!important}
+.shared-page-visual,.sap-now-visual{max-width:160px;opacity:.8;min-height:120px!important;height:120px!important}.sap-now-hero{grid-template-columns:1fr 170px!important;margin-bottom:8px!important}.sap-now-hero:before,.shared-page-header:before,.sap-now-visual:before,.sap-now-visual:after{display:none!important}.sap-now-diamond{width:150px!important}.sap-now-actions{display:none!important}.sap-now-kicker{margin-bottom:12px!important}.shared-page-header{grid-template-columns:1fr 170px!important}
+.shared-page-label,.sap-now-subtitle{color:var(--dr-purple)!important}
+.overview-heading{display:none}
+.dr-eyebrow{display:block;font-size:10px;letter-spacing:1.6px;font-weight:800;color:var(--dr-purple);margin-bottom:9px;text-transform:uppercase}
+.dr-intro{display:flex;justify-content:space-between;gap:20px;align-items:center;margin:4px 0 26px}
+.dr-intro h2{font-size:clamp(25px,2.7vw,40px);letter-spacing:-1.2px;line-height:1.15;margin:0 0 10px;color:var(--dr-ink)}
+.dr-intro h2 span{background:linear-gradient(95deg,#1768eb,#8253d8);background-clip:text;-webkit-background-clip:text;color:transparent}
+.dr-intro p{font-size:13px;color:var(--dr-muted);margin:0;line-height:1.65;max-width:620px}
+.dr-hero-actions{display:flex;gap:9px;flex-wrap:wrap}.dr-primary{background:linear-gradient(115deg,#1768eb,#7955dc)!important;color:#fff!important;border:0!important;padding:12px 17px!important}
+.dr-signals{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-bottom:24px}
+.dr-signal{text-align:left;background:#fff;border:1px solid var(--dr-line);border-radius:17px;padding:21px;cursor:pointer;position:relative;transition:transform .15s,box-shadow .15s;color:var(--dr-ink)}
+.dr-signal:hover,.dr-signal.active{transform:translateY(-2px);box-shadow:0 10px 28px #28377310;border-color:#8263de}
+.dr-signal small{display:block;color:var(--dr-muted);font-size:11px;line-height:1.5;margin-top:9px}.dr-signal strong{font-size:38px;letter-spacing:-1.5px;display:block;margin:13px 0 8px;color:var(--dr-blue)}.dr-signal:nth-child(2) strong{color:var(--dr-purple)}.dr-signal:nth-child(3) strong{color:#24735c}
+.dr-signal b{font-size:14px}.dr-signal .dr-arrow{position:absolute;right:22px;top:22px;color:#8796b2}
+.dr-scope{font-size:11px;color:var(--dr-muted);margin:0 0 11px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.dr-scope button{border:0;background:#eee9fc;color:#6541c0;border-radius:6px;padding:5px 9px;cursor:pointer}
+.track-grid{gap:10px!important;margin-bottom:28px!important}.track-card{min-height:105px!important;padding:14px 17px!important;border-radius:13px!important}.track-card-title{font-size:17px!important}.track-card-count{margin-top:9px!important}.track-card-top{margin-bottom:6px!important}
+.account-workspace{border:1px solid var(--dr-line)!important;border-radius:18px!important;box-shadow:0 8px 28px #1d355208!important;padding:22px!important}
+.workspace-head{align-items:flex-start!important;gap:20px}.workspace-head h2{font-size:22px!important;letter-spacing:-.6px}.workspace-actions{gap:7px!important;max-width:570px}.workspace-actions .btn{font-size:11px!important;padding:9px 11px!important}
+.pp-data-tools{padding:0!important;background:transparent!important;border:0!important;display:block!important}.dr-manage{position:relative}.dr-manage summary{list-style:none;cursor:pointer;font-size:11px;border:1px solid var(--dr-line);border-radius:8px;padding:9px 11px;background:#fff}.dr-manage[open] .dr-menu{display:flex;flex-direction:column;gap:6px;position:absolute;right:0;top:40px;z-index:20;background:white;padding:12px;border:1px solid var(--dr-line);border-radius:12px;box-shadow:0 12px 35px #14223d20;width:190px}.dr-menu{display:none}.dr-menu .pp-tools-label{display:none}
+.workspace-grid{display:block!important}.account-list-panel{display:none!important}.account-table-panel{min-width:0}.account-toolbar{display:grid!important;grid-template-columns:minmax(210px,1.5fr) 1fr 1fr;gap:10px}.account-toolbar input,.account-toolbar select{width:100%!important;border-radius:10px!important;min-height:44px;border-color:var(--dr-line)!important}
+.table{font-size:12px}.table th{font-size:10px!important;color:var(--dr-muted);padding:14px 12px!important}.table td{padding:15px 12px!important;vertical-align:middle!important}.table th:nth-child(1),.table td:nth-child(1),.table th:nth-child(4),.table td:nth-child(4),.table th:nth-child(5),.table td:nth-child(5),.table th:nth-child(6),.table td:nth-child(6){display:none}.account-row{cursor:pointer}.account-row:hover{background:#f4f1ff!important}.table td:last-child{max-width:280px}.tablewrap{border-radius:12px!important}
+.dr-meter{height:4px;width:90px;max-width:100%;background:#e9edf7;border-radius:8px;overflow:hidden;margin-top:6px}.dr-meter i{display:block;height:100%;background:linear-gradient(90deg,#1768eb,#7955dc)}
+.account-focus-shell{width:min(1440px,96vw)!important;max-width:1440px!important;border-radius:22px!important;overflow:hidden;border:1px solid #e4e9f4;box-shadow:0 28px 90px #091b3a40}
+.account-focus-nav{background:#f7f8fc!important;border-right:1px solid var(--dr-line)!important}.account-focus-main{background:#fff!important;padding:25px!important;min-width:0}.focus-header{padding-bottom:20px!important;border-bottom:1px solid var(--dr-line);margin-bottom:22px!important}.focus-header h2{font-size:30px!important;letter-spacing:-1px;color:var(--dr-ink)}
+.dr-brief-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:18px 0}.dr-box{border:1px solid var(--dr-line);border-radius:16px;padding:21px;background:#fbfcff;min-width:0}.dr-box .dr-text{max-height:260px;overflow:auto}.meeting-mode #modalSearch,.meeting-mode #modalSae{display:none!important}.dr-box h3{font-size:18px;letter-spacing:-.5px;color:var(--dr-ink);margin:0 0 15px}.dr-facts{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:17px}.dr-facts b{display:block;font-size:22px;letter-spacing:-.6px}.dr-facts small{display:block;font-size:10px;color:var(--dr-muted);margin-top:5px}.dr-text{font-size:13px;line-height:1.7;white-space:pre-wrap;overflow-wrap:anywhere;color:#34455f}.dr-next{background:linear-gradient(115deg,#142f63,#533486);color:white;border-radius:18px;padding:26px;position:relative}.dr-next .dr-eyebrow{color:#bfd1ff}.dr-next h3{font-size:23px;letter-spacing:-.7px;margin:0 0 15px;color:white!important;line-height:1.4}.dr-next p{color:#d3ddf5;font-size:12px;line-height:1.6;margin:12px 0 0}.dr-next .pill{background:#ffffff20!important;color:#fff!important;border-color:#ffffff30!important}.dr-next h3 .readable-line{color:inherit}
+.dr-details{border:1px solid var(--dr-line);border-radius:12px;margin:12px 0;background:white}.dr-details summary{cursor:pointer;padding:16px 18px;font-size:13px;font-weight:700;color:var(--dr-ink)}.dr-details>div{padding:0 18px 18px}.dr-details .dr-text{max-height:450px;overflow:auto}
+.dr-commit{border:1px solid #dcd4f4;border-radius:16px;padding:23px;margin-top:22px;background:#faf8ff}.dr-commit h3{font-size:22px;letter-spacing:-.6px;margin:0 0 6px;color:var(--dr-ink)}.dr-commit p{font-size:12px;color:var(--dr-muted);line-height:1.6;margin:0 0 17px}.dr-form{display:grid;grid-template-columns:1fr 1fr;gap:13px}.dr-form label{font-size:11px;color:#4f5d74;font-weight:700;display:flex;flex-direction:column;gap:7px}.dr-form label.wide{grid-column:1/-1}.dr-form input,.dr-form select,.dr-form textarea{box-sizing:border-box;width:100%;padding:10px 12px;background:white;border:1px solid #dce0ef;border-radius:9px;font:inherit;font-size:13px;color:var(--dr-ink)}.dr-form textarea{min-height:78px;resize:vertical}.dr-commit-footer{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:15px}.dr-save-state{font-size:11px;color:var(--dr-muted)}
+.dr-meeting-bar{display:flex;gap:12px;align-items:center;justify-content:space-between;background:#f3f0fb;border-radius:12px;padding:12px 16px;margin:0 0 18px;font-size:12px;color:#5d4487}.dr-meeting-bar div{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.dr-meeting-bar b{color:#3e2b69}.dr-meeting-bar .btn{font-size:11px;padding:7px 9px}.meeting-mode .account-focus-shell{width:98vw!important;height:94vh!important;max-height:94vh!important}.meeting-mode .account-focus-nav{width:245px!important}.meeting-mode .dr-details{display:none}.meeting-mode .focus-header h2{font-size:36px!important}.meeting-mode .dr-next h3{font-size:26px!important}.dr-queue-item{width:100%;background:white;border:1px solid var(--dr-line);border-radius:10px;text-align:left;padding:12px;margin-bottom:7px;cursor:pointer;color:var(--dr-ink)}.dr-queue-item.active{border-color:#7955dc;background:#f0eafa}.dr-queue-item small{display:block;font-size:10px;color:var(--dr-muted);margin-top:5px}
+button:focus-visible,summary:focus-visible,a:focus-visible{outline:3px solid #a391e9;outline-offset:3px}
+@media(max-width:1000px){.main{padding:24px!important}.dr-intro{align-items:flex-start;flex-direction:column}.dr-signals{gap:10px}.dr-signal{padding:16px}.dr-brief-grid{grid-template-columns:1fr}.focus-header{flex-wrap:wrap}.account-focus-nav{width:210px!important;min-width:180px!important}.workspace-head{flex-wrap:wrap}}
+@media(max-width:700px){.main{padding:18px!important}.dr-signals{grid-template-columns:1fr}.dr-signal strong{font-size:29px;margin:8px 0}.dr-signal{padding:15px}.account-toolbar{grid-template-columns:1fr!important}.dr-form{grid-template-columns:1fr}.dr-form label.wide{grid-column:1}.account-focus-nav{display:none!important}.account-focus-main{padding:18px!important}.focus-header h2{font-size:26px!important}.dr-facts b{font-size:18px}.dr-commit-footer{flex-wrap:wrap}.table td:last-child,.table th:last-child{display:none}.shared-page-visual,.sap-now-visual{display:none}.sap-now-hero,.shared-page-header{grid-template-columns:1fr!important}.dr-intro h2{font-size:29px}.account-workspace{padding:15px!important}}
+@media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important}}
+
+/* Portfolio control bar: filters and exports are distinct, compact work areas. */
+.workspace-head{display:grid!important;grid-template-columns:minmax(260px,1fr) auto!important;gap:22px!important;align-items:center!important;margin-bottom:20px!important}
+.workspace-actions{display:flex!important;justify-content:flex-end!important;align-items:center!important;max-width:none!important;width:auto!important;gap:8px!important;flex-wrap:wrap!important}
+.dr-export-group{display:flex;gap:8px;padding-right:10px;margin-right:2px;border-right:1px solid #e3e9f3}
+.workspace-actions .dr-export-group .btn{display:inline-flex;align-items:center;gap:8px;min-height:40px!important;border-radius:11px!important;font-size:12px!important;font-weight:750!important;padding:10px 13px!important;box-shadow:none!important}
+.workspace-actions .dr-excel{background:#eef8f3!important;color:#17684c!important;border:1px solid #c9e7d8!important}
+.workspace-actions .dr-powerpoint{background:#fff3ee!important;color:#b34d28!important;border:1px solid #efd3c6!important}
+.workspace-actions .dr-excel:hover{background:#dff3e9!important}.workspace-actions .dr-powerpoint:hover{background:#ffe6da!important}
+.workspace-actions>.history-btn{min-height:38px!important;border:1px solid #e5e9f3!important;background:#f9faff!important;color:#596984!important;border-radius:10px!important;padding:9px!important}
+.workspace-actions>.primary{min-height:40px!important;border-radius:10px!important;background:linear-gradient(115deg,#1768eb,#7955dc)!important;padding:10px 15px!important}
+.dr-export-scope{flex-basis:100%;margin:0!important;text-align:right;font-size:10px!important;color:#6c7890!important}
+.dr-filter-bar{background:#f5f7fc!important;border:1px solid #e5eaf4!important;padding:15px!important;border-radius:15px!important;gap:12px!important;margin-bottom:18px!important;grid-template-columns:minmax(230px,1.4fr) 1fr 1fr!important}
+.dr-filter{display:flex;flex-direction:column;gap:8px;min-width:0}.dr-filter>span{font-size:10px;letter-spacing:.6px;font-weight:800;color:#64748b;text-transform:uppercase;padding-left:3px}.dr-filter input,.dr-filter select{background:white!important;border:1px solid #dfe5f0!important;border-radius:10px!important;min-height:44px!important;font-size:13px!important;padding:11px 13px!important;box-shadow:0 2px 4px #172a4503}
+.dr-filter input:focus,.dr-filter select:focus{outline:none;border-color:#7955dc!important;box-shadow:0 0 0 3px #7955dc14!important}
+.dr-filter-footer{grid-column:1/-1;display:flex;align-items:center;gap:12px;padding-top:2px;font-size:11px;color:#7b879b}.dr-filter-footer #dr-filter-count{font-weight:800;color:#5b41ab;background:#eee8fa;border-radius:7px;padding:6px 9px;white-space:nowrap}.dr-filter-footer .dr-clear{margin-left:auto;border:0!important;background:transparent!important;color:#5b41ab!important;font-size:11px!important;padding:6px!important;min-height:0!important;cursor:pointer}
+.dr-manage summary{min-height:38px;box-sizing:border-box;display:flex;align-items:center;gap:5px;border-radius:10px}
+@media(max-width:1200px){.workspace-head{grid-template-columns:1fr!important}.workspace-actions{justify-content:flex-start!important}.dr-export-scope{text-align:left!important}}
+@media(max-width:700px){.dr-filter-bar{grid-template-columns:1fr!important}.dr-filter-footer>span:nth-child(2){display:none}.dr-export-group{padding-right:0;border-right:0}.workspace-actions{gap:7px!important}.workspace-actions .dr-export-group .btn{font-size:11px!important}}
+
+
+.dr-workspace-kicker-row{display:flex;align-items:center;gap:15px;margin-bottom:8px;flex-wrap:wrap}.dr-workspace-kicker-row .workspace-kicker{margin:0!important}.dr-workspace-kicker-row .dr-start-btn{font-size:11px!important;padding:6px 10px!important;min-height:29px!important;background:#eee8fc!important;border:1px solid #ded3f6!important;border-radius:8px!important;color:#6443b7!important;font-weight:750!important}.dr-workspace-kicker-row .dr-start-btn:hover{background:#e4d9f9!important}
+
+</style>
+<script id="pioneer-decision-room-engine">
+(function installDecisionRoom(){
+'use strict';
+if(document.readyState!=='complete'){window.addEventListener('load',installDecisionRoom,{once:true});return}
+let signal='',meeting=false,queue=[],drafts=new Map(),undo=[],redo=[];
+const fields=['Meeting Action','Action Owner','Target Date','Meeting Status','Meeting Blocker'];
+const key=x=>String(x['Account BP']||'')+'|'+String(x['Account Name']||'');
+const clone=x=>JSON.parse(JSON.stringify(x));
+const baseFiltered=window.filtered,baseRender=window.render,baseDetail=window.renderAccountDetail,baseNav=window.renderModalNav,baseSave=window.saveEdit,baseClose=window.closeModal;
+const baseUndo=window.undoPortalEdit,baseRedo=window.redoPortalEdit;
+const rules={activate:x=>x['AI Positioning Track']==='2 — ACTIVATE'&&Number(x['AI Units Allocated'])>0&&Number(x['AI Units Consumed'])===0,grow:x=>x['AI Positioning Track']==='3 — GROW',expand:x=>x['AI Positioning Track']==='4 — UPSELL'};
+const titles={activate:'Ready to activate',grow:'Adoption needs attention',expand:'Expansion to validate'};
+function textValue(v){return esc(String(v??'').trim()||'Not recorded')}
+function notify(m){if(window.toast)toast(m)}
+function history(before){if(JSON.stringify(before)!==JSON.stringify(portalAccounts)){undo.push(before);if(undo.length>80)undo.shift();redo=[];updateHistory()}}
+function updateHistory(){const u=document.getElementById('undoBtn'),r=document.getElementById('redoBtn');if(u)u.disabled=!undo.length;if(r)r.disabled=!redo.length}
+function persist(){persistEdits();if(localStorage.getItem('sap_bai_portal_import_v1'))localStorage.setItem('sap_bai_portal_import_v1',JSON.stringify(portalAccounts))}
+function restore(data){portalAccounts=clone(data);persist();drafts.clear();render();renderModalNav();if(document.getElementById('accountModal').classList.contains('show'))renderAccountDetail();updateHistory()}
+window.undoPortalEdit=function(){if(!undo.length){baseUndo?.();return}redo.push(clone(portalAccounts));restore(undo.pop());notify('Change undone')};
+window.redoPortalEdit=function(){if(!redo.length){baseRedo?.();return}undo.push(clone(portalAccounts));restore(redo.pop());notify('Change restored')};
+window.saveEdit=function(){const before=clone(portalAccounts);baseSave();persist();history(before)};
+window.filtered=function(){const rows=baseFiltered();return signal?rows.filter(rules[signal]):rows};
+window.drSignal=function(id){signal=signal===id?'':id;render()};
+const baseReset=window.resetFilters;
+window.resetFilters=function(){signal='';baseReset()};
+const baseTrack=window.filterByTrack;
+window.filterByTrack=function(t){signal='';baseTrack(t)};
+window.render=function(){baseRender();const rows=baseFiltered();for(const id of Object.keys(rules)){const b=document.getElementById('dr-signal-'+id);if(b){b.querySelector('strong').textContent=rows.filter(rules[id]).length.toLocaleString();b.classList.toggle('active',signal===id);b.setAttribute('aria-pressed',String(signal===id))}}
+ const scope=document.getElementById('dr-scope');if(scope)scope.innerHTML=`${filtered().length} accounts in view · Exports follow this view · ${textValue(document.getElementById('sae').value||'All SAEs')}${signal?` · ${titles[signal]} <button onclick="drSignal('${signal}')">Clear insight ×</button>`:''}`;
+ const sel=document.getElementById('sae');const current=sel.value;const names=[...new Set(portalAccounts.map(x=>x.SAE).filter(Boolean))].sort();if(sel.options.length!==names.length+1){sel.innerHTML='<option value="">All SAEs</option>'+names.map(n=>`<option>${esc(n)}</option>`).join('');sel.value=current}
+ const hint=document.getElementById('exportSelectionHint');if(hint)hint.textContent=`Export scope: ${rowsForExport(false).length} accounts${window.getPortalExportSelectionCount?.()>0?' selected':''}`;const countBadge=document.getElementById('dr-filter-count');if(countBadge)countBadge.textContent=`${filtered().length} accounts`;document.querySelectorAll('#accountBody tr').forEach((tr,i)=>{const x=filtered()[i];if(!x)return;const td=tr.children[7];if(td){const p=Number(x['Consumption %']);td.innerHTML=`${pct(x['Consumption %'])}<div class="dr-meter"><i style="width:${Number.isFinite(p)?Math.min(100,Math.max(0,p*100)):0}%"></i></div>`}});updateHistory()};
+window.drStartMeeting=function(){queue=filtered().map(key);if(!queue.length){notify('No accounts match this selection');return}meeting=true;document.getElementById('accountModal').classList.add('meeting-mode');openAccount(portalAccounts.findIndex(x=>key(x)===queue[0]));};
+window.drToggleMeeting=function(){meeting=!meeting;document.getElementById('accountModal').classList.toggle('meeting-mode',meeting);if(meeting&&!queue.includes(key(portalAccounts[selectedAccountIndex]))){queue=filtered().map(key);if(!queue.includes(key(portalAccounts[selectedAccountIndex])))queue.unshift(key(portalAccounts[selectedAccountIndex]))}renderAccountDetail();renderModalNav()};
+window.closeModal=function(){meeting=false;document.getElementById('accountModal').classList.remove('meeting-mode');baseClose()};
+const baseMove=window.moveAccount;
+window.moveAccount=function(delta){if(!meeting){baseMove(delta);return}const keys=queue.filter(k=>portalAccounts.some(x=>key(x)===k));const pos=keys.indexOf(key(portalAccounts[selectedAccountIndex]));const next=keys[Math.min(keys.length-1,Math.max(0,pos+delta))];if(next)openAccount(portalAccounts.findIndex(x=>key(x)===next))};
+window.renderModalNav=function(){if(!meeting){baseNav();return}const rows=queue.map(k=>portalAccounts.find(x=>key(x)===k)).filter(Boolean);document.getElementById('modalNavCount').textContent=`MEETING QUEUE · ${rows.length} accounts`;document.getElementById('modalAccountList').innerHTML=rows.map((x,i)=>`<button class="dr-queue-item ${key(x)===key(portalAccounts[selectedAccountIndex])?'active':''}" onclick="openAccount(${portalAccounts.indexOf(x)})"><b>${i+1}. ${esc(x['Account Name'])}</b><small>${esc(x.SAE)} · ${esc(x['AI Positioning Track']||'Unclassified')}</small></button>`).join('')};
+function detail(label,value){return `<details class="dr-details"><summary>${label}</summary><div class="dr-text">${textValue(value)}</div></details>`}
+window.renderAccountDetail=function(){if(editingAccountIndex===selectedAccountIndex){baseDetail();return}const x=portalAccounts[selectedAccountIndex];if(!x)return;document.getElementById('editBtn').textContent='Edit data';document.getElementById('mTitle').textContent=x['Account Name']||'Unnamed account';document.getElementById('mSub').textContent=`${x.SAE||'Unassigned'} · BP ${x['Account BP']||'—'} · ${x['Business Model']||'—'}`;
+ const draft=drafts.get(key(x))||Object.fromEntries(fields.map(f=>[f,x[f]||'']));const index=queue.indexOf(key(x));const navigationRows=meeting?queue.map(k=>portalAccounts.find(a=>key(a)===k)).filter(Boolean):filtered();const position=navigationRows.indexOf(x);document.querySelectorAll('.focus-actions button').forEach(b=>{if(b.textContent.includes('Previous'))b.disabled=position<=0;if(b.textContent.includes('Next'))b.disabled=position<0||position>=navigationRows.length-1});
+ document.getElementById('mBody').innerHTML=`
+ <div class="dr-meeting-bar"><div><b>${meeting?`MEETING · ${index+1} / ${queue.length}`:'ACCOUNT BRIEFING'}</b><span>${meeting?'Current position → Opportunity → Next move':'Current data and a clear next move.'}</span></div><div><button class="btn" onclick="drToggleMeeting()">${meeting?'Exit meeting mode':'Meeting mode'}</button><button class="btn" onclick="drExport('pptx',true)">Export this brief</button></div></div>
+ <section class="dr-next"><span class="dr-eyebrow">NEXT MOVE · RECORDED ACCOUNT ACTION</span><h3>${textValue(x['SAE Next Action'])}</h3><span class="pill ${cls(x['AI Positioning Track'])}">${textValue(x['AI Positioning Track'])}</span><p><b>Why this track:</b> ${textValue(x['Why This Track'])}</p></section>
+ <div class="dr-brief-grid"><section class="dr-box"><span class="dr-eyebrow">01 · CURRENT POSITION</span><h3>Where are we today?</h3><div class="dr-text">${textValue(x['Current AI Package(s) / Activated'])}</div><div class="dr-facts"><div><b>${x['AI Units Allocated']===undefined?'—':Number(x['AI Units Allocated']).toLocaleString()}</b><small>Allocated units</small></div><div><b>${x['AI Units Consumed']===undefined?'—':Number(x['AI Units Consumed']).toLocaleString()}</b><small>Consumed units</small></div><div><b>${x['Consumption %']===undefined?'—':pct(x['Consumption %'])}</b><small>Recorded consumption</small></div></div></section>
+ <section class="dr-box"><span class="dr-eyebrow">02 · OPPORTUNITY</span><h3>What could move this account forward?</h3><div class="dr-text">${textValue(String(x['AI to Position']||'').split('\n').filter(l=>l.trim()).slice(0,6).join('\n'))}</div><small class="dr-save-state">Full positioning is available in the opportunity detail below.</small></section></div>
+ ${detail('Full opportunity / AI positioning',x['AI to Position'])}${detail('Current active AI features',x['Current Active AI Features'])}${detail('SAP solution portfolio',x['Current SAP Cloud Solutions'])}${detail('Applicable SAP AI Agents',x['Applicable SAP AI Agents'])}${detail('Commercial indication · existing dataset',x['Est. 3-User Act. Value (€)'])}
+`;
+ document.querySelectorAll('[data-dr-field]').forEach(el=>el.addEventListener('input',()=>{drafts.set(key(x),Object.fromEntries([...document.querySelectorAll('[data-dr-field]')].map(e=>[e.dataset.drField,e.value])));document.getElementById('dr-save-state').textContent='Unsaved draft · kept while you navigate'}));
+};
+window.drSaveCommitment=function(){const x=portalAccounts[selectedAccountIndex];if(!x)return;const values=Object.fromEntries([...document.querySelectorAll('[data-dr-field]')].map(el=>[el.dataset.drField,el.value.trim()]));if(!values['Meeting Action']){notify('Add the agreed next action first');document.querySelector('[data-dr-field="Meeting Action"]').focus();return}const before=clone(portalAccounts);Object.assign(x,values,{'Meeting Saved At':new Date().toISOString()});persist();history(before);drafts.delete(key(x));renderAccountDetail();renderModalNav();render();notify('Commitment saved')};
+function rowsForExport(one,portfolio=false){if(one)return [portalAccounts[selectedAccountIndex]];if(portfolio&&window.getPortalExportRows)return window.getPortalExportRows();if(meeting)return queue.map(k=>portalAccounts.find(x=>key(x)===k)).filter(Boolean);const view=filtered();return window.getPortalExportSelectionCount?.()>0?window.getPortalExportRows().filter(x=>view.includes(x)):view}
+const exportColors={ink:'14223D',blue:'1768EB',purple:'7955DC',muted:'64748B',line:'E3E9F3',paper:'F6F8FD',white:'FFFFFF',green:'24735C'};
+function cleanLines(value){return String(value??'').split(/\r?\n/).map(s=>s.replace(/^[\s•]+/,'').trim()).filter(s=>s&&!/^[─━_\-=]{5,}$/.test(s))}
+function pages(value,maxLines=13,width=78){const out=[];let lines=[];for(const line of cleanLines(value||'Not recorded')){let rest=line;while(rest.length>width){let n=rest.lastIndexOf(' ',width);if(n<width/2)n=width;lines.push(rest.slice(0,n));rest=rest.slice(n).trimStart();if(lines.length===maxLines){out.push(lines.join('\n'));lines=[]}}lines.push(rest);if(lines.length===maxLines){out.push(lines.join('\n'));lines=[]}}if(lines.length)out.push(lines.join('\n'));return out}
+function commercialRows(value){const records=[],other=[];for(const line of cleanLines(value)){const m=line.match(/^(.*?)\s*:?\s*EUR\s*([\d,]+(?:\.\d+)?)\s*\/mo\s*\|\s*EUR\s*([\d,]+(?:\.\d+)?)\s*\/yr(.*)$/i);if(m){records.push({offering:m[1].replace(/:\s*$/,'').trim(),monthly:Number(m[2].replace(/,/g,'')),annual:Number(m[3].replace(/,/g,''))});if(m[4].trim())other.push(m[1].replace(/:\s*$/,'').trim()+': '+m[4].trim())}else other.push(line)}return {records,other}}
+const labelTrack=x=>String(x['AI Positioning Track']||'Unclassified').replace(/^\d\s*[—-]\s*/,'');
+const accent=x=>labelTrack(x)==='SWITCH'?'1768EB':labelTrack(x)==='ACTIVATE'?'465FCE':labelTrack(x)==='GROW'?'7955DC':'24735C';
+async function writeStyledWorkbook(wb,fileName){
+ if(!window.JSZip)await new Promise((resolve,reject)=>{const sc=document.createElement('script');sc.src='https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js';sc.onload=resolve;sc.onerror=()=>reject(new Error('Excel formatting library could not load. Check your connection and try again.'));document.head.appendChild(sc)});
+ const bytes=XLSX.write(wb,{type:'array',bookType:'xlsx',compression:true});const zip=await JSZip.loadAsync(bytes);
+ for(let i=0;i<wb.SheetNames.length;i++){const path=`xl/worksheets/sheet${i+1}.xml`,file=zip.file(path);if(!file)continue;let xml=await file.async('string');
+ const name=wb.SheetNames[i],freeze=name==='Accounts'||name==='Commercial Detail';
+ const pane=freeze?'<pane xSplit="'+(name==='Accounts'?2:1)+'" ySplit="1" topLeftCell="'+(name==='Accounts'?'C2':'B2')+'" activePane="bottomRight" state="frozen"/>':'';
+ const views='<sheetViews><sheetView workbookViewId="0" showGridLines="0" zoomScale="90">'+pane+'<selection'+(freeze?' pane="bottomRight"':'')+' activeCell="'+(freeze?(name==='Accounts'?'C2':'B2'):'A1')+'" sqref="'+(freeze?(name==='Accounts'?'C2':'B2'):'A1')+'"/></sheetView></sheetViews>';
+ if(/<sheetViews\b[^>]*\/>/.test(xml))xml=xml.replace(/<sheetViews\b[^>]*\/>/,views);else if(/<sheetViews[\s>]/.test(xml))xml=xml.replace(/<sheetViews[\s\S]*?<\/sheetViews>/,views);else if(/<dimension[^>]*\/>/.test(xml))xml=xml.replace(/(<dimension[^>]*\/>)/,'$1'+views);else xml=xml.replace(/(<worksheet\b[^>]*>)/,'$1'+views);
+ zip.file(path,xml);
+ }
+ const output=await zip.generateAsync({type:'blob',mimeType:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',compression:'DEFLATE'});const url=URL.createObjectURL(output),a=document.createElement('a');a.href=url;a.download=fileName;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
+}
+async function exportWorkbook(rows,scope){
+ const X=window.XLSX;if(!X)throw new Error('Excel export library is unavailable. Check your connection and try again.');const C=exportColors,wb=X.utils.book_new(),cols=[...new Set(rows.flatMap(x=>Object.keys(x)))].filter(k=>!/^Meeting |^Action Owner$|^Target Date$/.test(k));
+ const line={bottom:{style:'thin',color:{rgb:'E4E9F2'}}};
+ function cell(ws,r,c,value,o={}){const a=X.utils.encode_cell({r,c});ws[a]={t:typeof value==='number'?'n':'s',v:value??'',s:{font:{name:'Aptos',sz:o.size||11,bold:!!o.bold,color:{rgb:o.color||C.ink}},fill:{fgColor:{rgb:o.bg||'FFFFFF'}},alignment:{vertical:'center',horizontal:o.align||'left',wrapText:true},...(o.border?{border:line}:{})}};return ws[a]}
+ function merge(ws,r,c,w,value,o={}){ws['!merges']??=[];ws['!merges'].push({s:{r,c},e:{r,c:c+w-1}});for(let j=c;j<c+w;j++)cell(ws,r,j,'',o);return cell(ws,r,c,value,o)}
+ function rowsHeight(ws,n,h=22){ws['!rows']=Array.from({length:n},()=>({hpt:h}))}
+ function lines(value,width){return String(value??'').split('\n').reduce((n,l)=>n+Math.max(1,Math.ceil(l.length/width)),0)}
+ const n=rows.length,summary=X.utils.aoa_to_sheet(Array.from({length:n+11},()=>Array(10).fill('')));summary['!cols']=[{wch:3},...Array.from({length:8},()=>({wch:13})),{wch:3}];rowsHeight(summary,n+11,20);
+ merge(summary,0,1,8,'SAP BUSINESS AI  /  ACCOUNT PORTFOLIO',{size:9,bold:true,color:C.purple});summary['!rows'][0]={hpt:24};
+ merge(summary,1,1,8,'Pipeline Pioneer',{size:24,bold:true});summary['!rows'][1]={hpt:38};
+ merge(summary,2,1,8,`${scope}  ·  ${n} account${n===1?'':'s'}  ·  ${new Date().toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'})}`,{size:10,color:C.muted});summary['!rows'][2]={hpt:23};summary['!rows'][3]={hpt:12};
+ ['SWITCH','ACTIVATE','GROW','UPSELL'].forEach((name,i)=>{const color=['1768EB','465FCE','7955DC','24735C'][i];merge(summary,4,1+i*2,2,name,{size:9,bold:true,color,align:'center',bg:'F5F3FA'});merge(summary,5,1+i*2,2,rows.filter(x=>labelTrack(x)===name).length,{size:24,bold:true,color,align:'center',bg:'F5F3FA'})});summary['!rows'][4]={hpt:23};summary['!rows'][5]={hpt:37};summary['!rows'][6]={hpt:12};
+ merge(summary,7,1,8,'Account priorities',{size:14,bold:true});summary['!rows'][7]={hpt:29};merge(summary,8,1,8,'Full briefings: Discussion Plan. Update source records in Accounts, then import this workbook.',{size:9,color:C.muted});summary['!rows'][8]={hpt:24};
+ [[1,3,'Account'],[4,2,'Growth track'],[6,3,'Next move']].forEach(([c,w,v])=>merge(summary,9,c,w,v,{size:10,bold:true,color:C.white,bg:C.ink}));summary['!rows'][9]={hpt:28};
+ rows.forEach((x,i)=>{const r=i+10,bg=i%2?'F7F9FC':'FFFFFF';const a=merge(summary,r,1,3,x['Account Name']||'Unnamed account',{bold:true,bg,border:true});const nameCol=cols.indexOf('Account Name');if(nameCol>=0)a.l={Target:"#'Accounts'!"+X.utils.encode_cell({r:i+1,c:nameCol}),Tooltip:'Open editable source record'};merge(summary,r,4,2,labelTrack(x),{size:10,bold:true,color:accent(x),bg,border:true});merge(summary,r,6,3,x['SAE Next Action']||'Not recorded',{size:10,bg,border:true});summary['!rows'][r]={hpt:Math.min(180,Math.max(44,Math.max(lines(x['Account Name'],36),lines(x['SAE Next Action'],38))*13+14))}});X.utils.book_append_sheet(wb,summary,'Executive Brief');
+ // Account briefs use a narrow reading layout instead of a wide data matrix.
+ const planRows=[];const blocks=[];rows.forEach(x=>{const start=planRows.length;blocks.push({start,x});planRows.push(['',x['Account Name']||'Account','',''],['',`${x.SAE||'Unassigned'}  /  ${labelTrack(x)}  /  BP ${x['Account BP']||'—'}`,'',''],['','Current AI package',x['Current AI Package(s) / Activated']||'Not recorded',''],['','AI adoption',`${x['AI Units Consumed']??'—'} consumed / ${x['AI Units Allocated']??'—'} allocated / ${x['Consumption %']===undefined?'—':pct(x['Consumption %'])}`,''],['','Why this track',x['Why This Track']||'Not recorded',''],['','Next move',x['SAE Next Action']||'Not recorded',''],['','','',''])});
+ const plan=X.utils.aoa_to_sheet(planRows);plan['!cols']=[{wch:3},{wch:25},{wch:78},{wch:3}];rowsHeight(plan,planRows.length,26);blocks.forEach(({start,x})=>{merge(plan,start,1,2,x['Account Name']||'Account',{size:15,bold:true,color:C.white,bg:C.ink});plan['!rows'][start]={hpt:34};merge(plan,start+1,1,2,`${x.SAE||'Unassigned'}  /  ${labelTrack(x)}  /  BP ${x['Account BP']||'—'}`,{size:10,color:C.muted,bg:'F3F5FA'});for(let j=2;j<=5;j++){const r=start+j,bg=j===5?'F2EDFC':'FFFFFF';cell(plan,r,1,planRows[r][1],{size:10,bold:true,color:j===5?C.purple:C.muted,bg,border:true});cell(plan,r,2,planRows[r][2],{size:11,bold:j===5,bg,border:true});plan['!rows'][r]={hpt:Math.min(250,Math.max(34,lines(planRows[r][2],75)*14+16))}}plan['!rows'][start+6]={hpt:16}});X.utils.book_append_sheet(wb,plan,'Discussion Plan');
+ function table(data,widths){const ws=X.utils.aoa_to_sheet(data);ws['!cols']=widths.map(w=>({wch:w}));rowsHeight(ws,data.length,34);data.forEach((row,r)=>row.forEach((v,c)=>cell(ws,r,c,v,{size:r?10:10,bold:r===0,color:r?C.ink:C.white,bg:r===0?C.ink:r%2?'FFFFFF':'F6F8FC',border:true,align:typeof v==='number'?'right':'left'})));ws['!rows'][0]={hpt:32};ws['!autofilter']={ref:ws['!ref']};return ws}
+ const full=[cols,...rows.map(x=>cols.map(k=>x[k]??''))],source=table(full,cols.map(k=>k==='Account Name'?32:k==='SAE'?23:/Units|Consumption|BP|Model|Region/.test(k)?16:/Track/.test(k)?21:48));rows.forEach((x,i)=>{source['!rows'][i+1]={hpt:78};cols.forEach((k,c)=>{const item=source[X.utils.encode_cell({r:i+1,c})];if(k==='Consumption %'&&item.t==='n')item.z='0.0%';if(k==='AI Positioning Track'){item.s.font.bold=true;item.s.font.color={rgb:accent(x)}}})});X.utils.book_append_sheet(wb,source,'Accounts');
+ const commercial=[['Account','Offering / recorded assumption','Monthly EUR','Annual EUR']];rows.forEach(x=>{const p=commercialRows(x['Est. 3-User Act. Value (€)']);p.records.forEach(r=>commercial.push([x['Account Name'],r.offering,r.monthly,r.annual]));p.other.forEach(line=>commercial.push([x['Account Name'],line,'','']))});const cs=table(commercial,[31,66,19,19]);commercial.slice(1).forEach((r,i)=>{cs['!rows'][i+1]={hpt:Math.min(150,Math.max(32,lines(r[1],63)*13+14))};[2,3].forEach(c=>{const v=cs[X.utils.encode_cell({r:i+1,c})];if(v.t==='n')v.z='"€"#,##0.00';v.s.alignment.horizontal='right'});if(/Total cACV/i.test(r[1]))for(let c=0;c<4;c++){const v=cs[X.utils.encode_cell({r:i+1,c})];v.s.font.bold=true;v.s.font.color={rgb:C.purple};v.s.fill={fgColor:{rgb:'F0EBFA'}}}});X.utils.book_append_sheet(wb,cs,'Commercial Detail');
+ wb.Props={Title:'Pipeline Pioneer — Account Portfolio',Author:'SAP Services Sales',Subject:scope};await writeStyledWorkbook(wb,`${safeFileName(scope)}_Pipeline_Pioneer.xlsx`);
+}
+
+async function exportDeck(rows,scope){
+ if(!(window.PptxGenJS||window.pptxgen))await new Promise((resolve,reject)=>{const sc=document.createElement('script');sc.src='https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js';sc.onload=resolve;sc.onerror=()=>reject(new Error('PowerPoint library could not load. Check your connection.'));document.head.appendChild(sc)});
+ const P=window.PptxGenJS||window.pptxgen,ppt=new P();ppt.layout='LAYOUT_WIDE';ppt.author='SAP Services Sales';ppt.company='SAP';ppt.subject=scope;ppt.title='Pipeline Pioneer — Account Brief';ppt.lang='en-US';
+ const C={ink:'12213D',navy:'142440',muted:'64748B',white:'FFFFFF',soft:'B7C5DE',purple:'7654DA',line:'DCE3EF',rail:'324564',lavender:'B5A0FF'};
+ const tx=(sl,text,x,y,w,h,size=18,color=C.ink,bold=false,extra={})=>sl.addText(String(text??''),{x,y,w,h,fontFace:'Aptos',fontSize:size,color,bold,margin:0,breakLine:false,valign:'top',fit:'shrink',...extra});
+ function compact(value,max){let s=String(value??'').replace(/\s+/g,' ').trim();if(s.length<=max)return s;let end=s.lastIndexOf(' ',max-1);if(end<max*.6)end=max-1;return s.slice(0,end).replace(/[,:;\s]+$/,'')+'…'}
+ function opportunities(x){const lines=cleanLines(x['AI to Position']).filter(v=>!/^(SKU SWITCH|Prerequisite|Explore|After switch|to unlock|the SKU|Before)/i.test(v));let chosen=lines.filter(v=>/Joule|Document Grounding|Recommended:|SAP Business AI/i.test(v));if(!chosen.length)chosen=lines;chosen=[...new Set(chosen.map(v=>v.replace(/^Recommended:\s*/i,'').replace('SAP JOULE FOR CONSULTANTS','SAP Joule for Consultants')))];const agents=cleanLines(x['Applicable SAP AI Agents']).find(v=>/Agent/i.test(v)&&!/^Prerequisite|^Explore/i.test(v));if(agents&&chosen.length<3)chosen.push(agents);return chosen.slice(0,3).map(v=>compact(v,91))}
+ rows.forEach((x,i)=>{
+  const sl=ppt.addSlide();sl.background={color:C.white};
+  // A single editorial composition: adoption on the left, decision and value on the right.
+  sl.addShape(ppt.ShapeType.rect,{x:0,y:0,w:3.45,h:7.5,line:{color:C.navy,transparency:100},fill:{color:C.navy}});
+  tx(sl,'PIPELINE\nPIONEER',.5,.46,2.42,.74,18,C.white,true,{charSpacing:2});
+  tx(sl,'ACCOUNT POSITION',.5,1.48,2.4,.22,9,C.soft,true,{charSpacing:1.4});
+  tx(sl,labelTrack(x),.5,1.83,2.5,.65,30,C.lavender,true);
+  const raw=Number(x['Consumption %']),known=x['Consumption %']!==undefined&&x['Consumption %']!==''&&Number.isFinite(raw);const ratio=known?Math.max(0,Math.min(1,raw)):0;
+  if(known)sl.addChart(ppt.ChartType.doughnut,[{name:'Recorded consumption',labels:['Consumed','Remaining'],values:[ratio*100,(1-ratio)*100]}],{x:.53,y:2.68,w:2.38,h:2.38,holeSize:83,showLegend:false,showTitle:false,showValue:false,showPercent:false,showCategoryName:false,chartColors:[C.lavender,C.rail],showBorder:false,showLine:false,showCatName:false,chartArea:{fill:{color:C.navy},border:{color:C.navy,transparency:100}},plotArea:{fill:{color:C.navy},border:{color:C.navy,transparency:100}},showLeaderLines:false,legendPos:'b'});
+  tx(sl,known?pct(raw):'—',.62,3.47,2.2,.6,35,C.white,true,{align:'center'});
+  tx(sl,'CONSUMPTION',.63,4.12,2.2,.25,8.5,C.soft,true,{align:'center',charSpacing:1});
+  const units=v=>v===undefined||v===''?'—':Number.isFinite(Number(v))?Number(v).toLocaleString():String(v);
+  tx(sl,units(x['AI Units Allocated']),.5,5.46,1.36,.48,23,C.white,true);
+  tx(sl,'Allocated units',.5,6.04,1.36,.26,10,C.soft);
+  tx(sl,units(x['AI Units Consumed']),1.95,5.46,1.08,.48,23,C.white,true);
+  tx(sl,'Consumed units',1.95,6.04,1.15,.26,10,C.soft);
+  tx(sl,`${i+1} / ${rows.length}`,.5,7.02,2.4,.22,10,C.soft);
+  tx(sl,x['Account Name']||'Account',4.04,.47,8.63,1.03,32,C.ink,true);
+  tx(sl,`${x.SAE||'Unassigned'}    BP ${x['Account BP']||'—'}    ${x['Business Model']||'—'}`,4.07,1.56,8.55,.35,11.5,C.muted);
+  tx(sl,'NEXT MOVE',4.07,2.12,8.55,.24,10,C.purple,true,{charSpacing:1.3});
+  tx(sl,compact(x['SAE Next Action']||'Next action not recorded',190),4.07,2.53,8.55,.96,24,C.ink,true);
+  tx(sl,'RECORDED OPPORTUNITIES',4.07,3.79,8.55,.23,10,C.purple,true,{charSpacing:1.3});
+  const items=opportunities(x);const bulletText=(items.length?items:['Opportunity not recorded']).map(v=>({text:v,options:{bullet:{indent:12},hanging:3,breakLine:true}}));
+  sl.addText(bulletText,{x:4.07,y:4.13,w:8.52,h:.96,fontFace:'Aptos',fontSize:16,color:C.ink,margin:0,paraSpaceAfterPt:5,valign:'top',fit:'shrink'});
+  sl.addShape(ppt.ShapeType.line,{x:4.07,y:5.39,w:8.53,h:0,line:{color:C.line,pt:1}});
+  const pricing=commercialRows(x['Est. 3-User Act. Value (€)']);const total=pricing.records.find(r=>/Total cACV/i.test(r.offering));
+  tx(sl,'INDICATIVE COMMERCIAL SCENARIO',4.07,5.69,8.55,.24,10,C.muted,true,{charSpacing:1});
+  if(total){tx(sl,total.annual.toLocaleString('en-US',{style:'currency',currency:'EUR',minimumFractionDigits:2,maximumFractionDigits:2}),4.07,6.06,4.58,.56,32,C.purple,true);tx(sl,'per year',4.08,6.69,4.4,.25,10,C.muted);tx(sl,total.monthly.toLocaleString('en-US',{style:'currency',currency:'EUR',minimumFractionDigits:2,maximumFractionDigits:2}),9.21,6.2,3.37,.42,22,C.ink,true);tx(sl,'per month',9.23,6.69,3.2,.25,10,C.muted)}
+  else {tx(sl,'See recorded pricing detail in speaker notes',4.07,6.18,8.5,.55,20,C.ink);}
+  tx(sl,'Recorded scope and rates require validation. Full details are included in speaker notes.',4.07,7.12,8.55,.19,8.5,C.muted);
+  sl.addNotes(Object.entries(x).filter(([k])=>!/^Meeting |^Action Owner$|^Target Date$/.test(k)).map(([k,v])=>`${k}\n${v??'Not recorded'}`).join('\n\n'));
+ });
+ await ppt.writeFile({fileName:`${safeFileName(scope)}_Pipeline_Pioneer.pptx`});
+}
+
+window.drExport=async function(type,one=false,portfolio=false){const rows=rowsForExport(one,portfolio).filter(Boolean);if(!rows.length){notify('No accounts to export');return}const saes=[...new Set(rows.map(x=>x.SAE||'Unassigned'))];const scope=one?(rows[0]['Account Name']||'Account'):saes.length===1?saes[0]:meeting&&!portfolio?'Meeting selection':'Selected accounts';try{if(type==='xlsx')await exportWorkbook(rows,scope);else await exportDeck(rows,scope);notify(`Exported ${rows.length} account${rows.length===1?'':'s'}`)}catch(e){alert('Could not export: '+e.message)}};
+window.exportPowerPoint=()=>drExport('pptx',false,true);
+window.exportSelectedSAE=()=>drExport('xlsx',false,true);
+window.exportAllDataExcel=async function(){try{await exportWorkbook(portalAccounts,'All Accounts');notify(`Exported ${portalAccounts.length} accounts`)}catch(e){alert('Could not export: '+e.message)}};
+
+function setup(){const overview=document.getElementById('overview');const firstNav=document.querySelector('.side nav .nav-label');if(firstNav)firstNav.textContent='Executive View';const label=overview.querySelector('.sap-now-subtitle,.shared-page-label');if(label)label.textContent='Executive View';
+ const intro=document.createElement('section');intro.className='dr-intro';intro.innerHTML='<div><span class="dr-eyebrow">EXECUTIVE VIEW · KSA SAP BUSINESS AI</span><h2>Every account.<br><span>A clear next move.</span></h2><p>See the position. Focus the opportunity. Find the clearest next move.</p></div>';
+ const tracksEl=document.getElementById('trackCards');overview.insertBefore(intro,tracksEl);const signals=document.createElement('div');signals.innerHTML='<div class="dr-scope" id="dr-scope"></div><div class="dr-signals">'+Object.keys(rules).map(id=>`<button class="dr-signal" id="dr-signal-${id}" onclick="drSignal('${id}')" aria-pressed="false"><span class="dr-eyebrow">${id==='activate'?'UNLOCK VALUE':id==='grow'?'BUILD ADOPTION':'VALIDATE DEMAND'}</span><span class="dr-arrow">↗</span><strong>0</strong><b>${titles[id]}</b><small>${id==='activate'?'ACTIVATE track · allocated units > 0 · consumption = 0':id==='grow'?'GROW track · review the next adoption opportunity':'UPSELL track · confirm capacity and further demand'}</small></button>`).join('')+'</div>';overview.insertBefore(signals,tracksEl);
+ const heading=document.querySelector('.workspace-head h2');heading.textContent='Your account portfolio';document.querySelector('.workspace-head p').textContent='Select an SAE or growth track, then open an account for a focused briefing.';
+
+
+ const actions=document.querySelector('.workspace-actions');const data=document.querySelector('.pp-data-tools');if(data){const d=document.createElement('details');d.className='dr-manage';d.innerHTML='<summary>Manage data ▾</summary><div class="dr-menu"></div>';actions.appendChild(d);d.querySelector('.dr-menu').appendChild(data);[...actions.children].filter(b=>b.tagName==='BUTTON'&&(/Export Excel|Export PowerPoint/.test(b.textContent))).forEach(b=>d.querySelector('.dr-menu').appendChild(b))}
+ const exports=document.createElement('div');exports.className='dr-hero-actions';exports.innerHTML='<button class="btn" onclick="drExport(\'xlsx\')">Export Excel</button><button class="btn" onclick="drExport(\'pptx\')">Export PowerPoint</button>';actions.insertBefore(exports,actions.firstChild);
+ const search=document.getElementById('search');search.placeholder='Find an account, BP or SAE';
+ const toolbar=document.querySelector('.account-toolbar');toolbar.classList.add('dr-filter-bar');[['search','Find an account'],['sae','Account owner / SAE'],['track','Growth track']].forEach(([id,title])=>{const input=document.getElementById(id),label=document.createElement('label');label.className='dr-filter';const caption=document.createElement('span');caption.textContent=title;input.parentNode.insertBefore(label,input);label.appendChild(caption);label.appendChild(input)});
+ const filterFooter=document.createElement('div');filterFooter.className='dr-filter-footer';filterFooter.innerHTML='<span id="dr-filter-count">0 accounts</span><span>Click an account to open its briefing</span>';toolbar.appendChild(filterFooter);
+ const exportGroup=exports;exportGroup.classList.add('dr-export-group');exportGroup.querySelectorAll('button').forEach((b,i)=>{b.classList.add(i===0?'dr-excel':'dr-powerpoint');b.innerHTML='<svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M4 16v5h16v-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg><span>'+ (i===0?'Export Excel':'Export PowerPoint')+'</span>'});
+ const openButton=actions.querySelector('.primary');if(openButton){openButton.textContent='Start meeting →';openButton.onclick=drStartMeeting;}
+ const resetButton=[...actions.querySelectorAll('button')].find(b=>b.textContent==='Reset');if(resetButton){resetButton.classList.add('dr-clear');resetButton.textContent='Clear filters';filterFooter.appendChild(resetButton)}
+ const hint=document.getElementById('exportSelectionHint');if(hint){hint.classList.add('dr-export-scope');actions.appendChild(hint)}
+ const help=document.querySelector('.table-headline .small');if(help)help.textContent='Open an account to review its current position and next move.';
+ document.getElementById('accountModal').setAttribute('role','dialog');document.getElementById('accountModal').setAttribute('aria-modal','true');document.getElementById('accountModal').setAttribute('aria-labelledby','mTitle');
+ document.addEventListener('keydown',e=>{if(e.key==='Escape'&&document.getElementById('accountModal').classList.contains('show'))closeModal()});
+ window.addEventListener('beforeunload',e=>{if(drafts.size){e.preventDefault();e.returnValue=''}});render();
+}
+if(document.readyState==='complete')setup();else window.addEventListener('load',setup);
+})();
+</script>
+
+
+<style id="pioneer-restore-header-diamond">
+/* Keep the original diamond prominent and consistent in every page header. */
+.sap-now-hero,.shared-page-header{grid-template-columns:minmax(0,1fr) 340px!important;min-height:260px!important;align-items:center!important}
+.sap-now-visual,.shared-page-visual{display:flex!important;width:340px!important;max-width:340px!important;height:260px!important;min-height:260px!important;opacity:1!important;justify-self:end;align-items:center;justify-content:center;overflow:visible!important}
+.sap-now-diamond,.shared-page-visual img{width:330px!important;height:330px!important;max-width:100%!important;object-fit:contain!important}
+@media(max-width:1000px){.sap-now-hero,.shared-page-header{grid-template-columns:minmax(0,1fr) 260px!important;min-height:230px!important}.sap-now-visual,.shared-page-visual{width:260px!important;max-width:260px!important;height:230px!important;min-height:230px!important}.sap-now-diamond,.shared-page-visual img{width:260px!important;height:260px!important}}
+@media(max-width:700px){.sap-now-hero,.shared-page-header{grid-template-columns:1fr!important;min-height:0!important}.sap-now-visual,.shared-page-visual{width:230px!important;max-width:230px!important;height:190px!important;min-height:190px!important;justify-self:center;margin-top:6px!important}.sap-now-diamond,.shared-page-visual img{width:230px!important;height:230px!important}}
+</style>
 
 </body></html>
